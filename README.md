@@ -114,31 +114,54 @@ Server sẽ khởi động tại `http://localhost:8000`.
 }
 ```
 
+### 4. Liệt Kê Danh Sách (Management API)
+
+- **Endpoint**: `GET /api/links`
+- **Mục đích**: Xem danh sách các link đã tạo, hỗ trợ phân trang để tối ưu hiệu năng.
+- **Query Params**:
+  - `page`: Số trang cần xem (Mặc định: 1).
+  - `limit`: Số lượng link trên mỗi trang (Mặc định: 10, Tối đa: 100).
+- **Ví dụ**: `GET /api/links?page=1&limit=5`
+- **Response**:
+  ```json
+  {
+    "data": [
+      {
+        "url": "https://google.com",
+        "short_code": "aBc123",
+        "click_count": 15,
+        "created_at": "2023-12-28T10:00:00Z"
+      }
+      // ... các link khác
+    ],
+    "page": 1,
+    "limit": 5
+  }
+  ```
+
 ---
 
 ## 🧠 Thiết kế & Quyết định Kỹ thuật (Design Decisions)
 
-### 1. Tại sao chọn cấu trúc project này?
+### 1. Tại sao chọn PostgreSQL?
 
-Tôi sử dụng **Standard Go Project Layout** với thư mục `internal` để đóng gói logic:
+Em sử dụng **PostgreSQL** vì:
 
-- `cmd/server`: Entry point, giữ cho `main` gọn gàng.
-- `internal/api`: Xử lý HTTP Request/Response (Presentation Layer).
-- `internal/storage`: Xử lý Database logic (Data Layer).
-- **Lợi ích**: Dễ dàng mở rộng, viết Unit Test và bảo trì.
+- Yêu cầu bài toán cần đếm click_count chính xác. Postgres hỗ trợ ACID, giúp đảm bảo dữ liệu không bị sai lệch khi có concurrency (điều mà NoSQL như MongoDB cần xử lý phức tạp hơn).
+- Supabase được chọn vì khả năng setup nhanh chóng và hạ tầng ổn định.
 
 ### 2. Thuật toán sinh mã (Shortening Algorithm)
 
-Tôi sử dụng phương pháp **Random String Base62** (`a-z`, `A-Z`, `0-9`).
+Em sử dụng phương pháp **Random String Base62** (`a-z`, `A-Z`, `0-9`).
 
 - **Không gian mẫu**: Với độ dài 6 ký tự, có tỷ tổ hợp. Đủ lớn để tránh trùng lặp trong thời gian dài.
-- **Collision Handling**: Mặc dù xác suất thấp, tôi vẫn xử lý trường hợp trùng mã bằng cơ chế **Retry** (thử lại tối đa 3 lần) nếu DB báo lỗi Duplicate Key.
+- **Collision Handling**: Mặc dù xác suất thấp, em vẫn xử lý trường hợp trùng mã bằng cơ chế **Retry** (thử lại tối đa 3 lần) nếu DB báo lỗi Duplicate Key.
 
 ### 3. Giải quyết vấn đề Concurrency (Race Condition)
 
 Đây là thách thức lớn nhất: Nếu 1000 users click cùng lúc, việc đọc `click_count` lên rồi cộng 1 ở code Go sẽ gây sai lệch dữ liệu.
 
-**Giải pháp**: Tôi sử dụng **Atomic Update** ở mức Database.
+**Giải pháp**: Em sử dụng **Atomic Update** ở mức Database.
 
 ```sql
 UPDATE links
@@ -150,5 +173,71 @@ RETURNING original_url
 
 - PostgreSQL sẽ lock row đó lại và thực hiện update tuần tự.
 - Đảm bảo tính **ACID** và dữ liệu luôn chính xác 100%.
+
+### 4. Chiến lược Performance (Pagination)
+
+- **Vấn đề**: Đề bài đặt ra thách thức "Nếu có 1 triệu links thì query ra sao?". Việc query toàn bộ (`SELECT *`) sẽ gây quá tải Database và tràn bộ nhớ (OOM) Application Server.
+- **Giải pháp**: Em triển khai **Offset-based Pagination** (Phân trang).
+- **Implementation**: Sử dụng câu lệnh `LIMIT $1 OFFSET $2` trong PostgreSQL.
+- **Kết quả**: API luôn phản hồi nhanh (low latency) và tiêu tốn ít RAM, bất kể kích thước dữ liệu trong bảng `links` lớn đến đâu.
+
+### 5. Tại sao chọn RESTful API (thay vì GraphQL/gRPC)?
+
+- **Lý do**: Em chọn REST thay vì gRPC hay GraphQL vì tính đơn giản, dễ debug và tận dụng được khả năng caching của HTTP protocol cho các request Redirect.
+- **Format**: JSON chuẩn (snake_case) dễ dàng tích hợp với Frontend.
+
+## Trade-offs (Đánh đổi)
+
+Trong quá trình làm, em đã phải cân nhắc giữa các lựa chọn:
+
+### 1. SQL Driver (pgx) vs ORM (Gorm)
+
+#### Em chọn pgx (SQL thuần) thay vì Gorm.
+
+**Lý do:** Mặc dù ORM code ngắn hơn, nhưng dùng SQL thuần giúp em kiểm soát tối đa câu query, đặc biệt là tính năng RETURNING và Atomic Update để tối ưu hiệu năng. Đây cũng là cách để em rèn luyện kỹ năng SQL.
+
+### 2. Random String vs Auto-Increment ID (Base62 Conversion)
+
+#### Em chọn Random String thay vì Convert ID sang Base62.
+
+**Lý do:** Cách Random giúp URL khó đoán hơn (Security), người ngoài không biết hệ thống có bao nhiêu link.
+
+**Nhược điểm:** Phải xử lý vấn đề trùng mã (Collision), nhưng với không gian mẫu 56 tỷ thì tỷ lệ trùng cực thấp, chấp nhận được.
+
+### 3. Pagination (Offset) vs Cursor-based
+
+#### Em chọn Offset Pagination (LIMIT, OFFSET).
+
+**Lý do:** Dễ cài đặt, phù hợp với UI trang số truyền thống.
+
+**Nhược điểm:** Sẽ chậm nếu offset quá lớn (ví dụ trang 1 triệu), nhưng với yêu cầu hiện tại thì đây là giải pháp cân bằng tốt nhất.
+
+## 🛑 Challenges & Limitations (Self-Review)
+
+### 1. Validation & Edge Cases
+
+- **Hiện tại**: Hệ thống chỉ kiểm tra URL không rỗng.
+- **Vấn đề**: Người dùng có thể nhập chuỗi không phải URL (ví dụ: "hello world") hoặc Local IP gây lỗi SSRF.
+- **Giải pháp (Future)**: Sử dụng package `net/url` để `ParseRequestURI` và kiểm tra scheme (http/https).
+
+### 2. Scalability (Traffic x100)
+
+- **Vấn đề**: Khi traffic tăng đột biến, Database sẽ là nút thắt cổ chai (Bottleneck) vì mọi request redirect đều phải đọc/ghi DB.
+- **Giải pháp**:
+  - **Caching**: Sử dụng **Redis** để lưu cặp key-value `short_code -> original_url`. Request đọc sẽ hit Cache trước (tốc độ < 5ms), chỉ hit DB khi cache miss.
+  - **Async Write**: Việc cập nhật `click_count` không cần realtime tức thì. Có thể ghi vào Redis trước, sau đó dùng Worker đồng bộ xuống Postgres sau mỗi 1 phút (Batch Processing).
+
+### 3. Concurrency (Create Link)
+
+- **Câu hỏi**: Nếu 2 request cùng tạo 1 URL thì sao?
+- **Quyết định**: Hệ thống hiện tại cho phép tạo 2 mã short code khác nhau cho cùng 1 URL gốc.
+- **Lý do**: Hỗ trợ nhu cầu Marketing (A/B Testing). Ví dụ: User muốn tracking riêng link này khi post Facebook và khi gửi Email.
+
+### 4. Security
+
+- **Đã làm**: Chống SQL Injection (Parameterized Query), Chống ID Enumeration (Random String).
+- **Cần làm thêm**:
+  - **Rate Limiting**: Chặn IP spam tạo hàng loạt link.
+  - **Phishing Check**: Tích hợp Google Safe Browsing API để chặn rút gọn link lừa đảo/độc hại.
 
 ---
