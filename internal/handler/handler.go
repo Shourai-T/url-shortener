@@ -47,10 +47,10 @@ func validateURL(inputURL string) bool {
 	}
 
 	// 4. (Basic SSRF) Chặn localhost/127.0.0.1 để tránh scan mạng nội bộ
-	hostname := u.Hostname()
-	if hostname == "localhost" || hostname == "127.0.0.1" || hostname == "::1" {
-		return false
-	}
+	// hostname := u.Hostname()
+	// if hostname == "localhost" || hostname == "127.0.0.1" || hostname == "::1" {
+	// 	return false
+	// }
 
 	return true
 }

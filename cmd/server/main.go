@@ -67,6 +67,9 @@ func main() {
 	// 5. Setup Router
 	r := gin.Default()
 
+	// Apply CORS
+	r.Use(middleware.CORSMiddleware())
+
 	// Apply Rate Limiting cho api rút gọn: 10 req/phút
 	r.POST("/shorten", middleware.RateLimiterMiddleware("10-M"), handler.ShortenURL)
 

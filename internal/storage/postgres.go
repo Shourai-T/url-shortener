@@ -19,6 +19,7 @@ func NewDatabase(dsn string) (*pgxpool.Pool, error) {
 	// Cấu hình Pool
 	config.MaxConns = 25
 	config.MinConns = 5
+
 	// ConnMaxLifetime không cần thiết lập thủ công với pgxpool thường (nó tự quản lý tốt)
 
 	// Tạo Pool

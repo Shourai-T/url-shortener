@@ -1,5 +1,5 @@
 # Stage 1: Builder
-FROM golang:1.20-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 # Cài đặt git và các dependencies cần thiết
 RUN apk add --no-cache git
@@ -29,7 +29,7 @@ WORKDIR /root/
 # Copy binary từ builder sang runner
 COPY --from=builder /app/server .
 # Copy cả .env nếu muốn (nhưng tốt hơn là truyền qua Environment Variable)
-COPY --from=builder /app/.env .
+
 
 # Expose port
 EXPOSE 8000
