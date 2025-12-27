@@ -40,7 +40,10 @@ func main() {
 	r := gin.Default()
 	r.POST("/shorten", handler.ShortenURL)
 	r.GET("/:code", handler.RedirectHandler)
-	r.GET("/api/stats/:code", handler.GetStats)
+
+	api := r.Group("/api")
+	api.GET("/stats/:code", handler.GetStats)
+	api.GET("/links", handler.ListLinks)
 
 	// 6. Run Server
 	log.Println("Running on :8000")

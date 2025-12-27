@@ -3,7 +3,9 @@ package api
 import (
 	"log"
 	"net/http"
+	"strconv"
 
+	"github.com/Shourai-T/url-shortener/internal/model"
 	"github.com/Shourai-T/url-shortener/internal/storage"
 	"github.com/gin-gonic/gin"
 )
@@ -63,4 +65,43 @@ func (h *Handler) GetStats(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, link)
+}
+
+// ListLinks: Lấy danh sách link (Pagination)
+func (h *Handler) ListLinks(c *gin.Context) {
+	// Lấy tham số page va limit từ URL query
+	pageStr := c.DefaultQuery("page", "1")
+	limitStr := c.DefaultQuery("limit", "10")
+
+	page, _ := strconv.Atoi(pageStr)
+	limit, _ := strconv.Atoi(limitStr)
+
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	} // Hard limit để tránh user query quá nhiều
+
+	offset := (page - 1) * limit
+
+	links, err := h.store.GetAllLinks(limit, offset)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch links"})
+		return
+	}
+
+	// Nếu danh sách rỗng thì trả về mảng rỗng thay vì null
+	if links == nil {
+		links = []model.Link{}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data":  links,
+		"page":  page,
+		"limit": limit,
+	})
 }

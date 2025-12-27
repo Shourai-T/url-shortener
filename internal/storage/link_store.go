@@ -71,3 +71,33 @@ func (s *Store) GetLinkStats(shortCode string) (*model.Link, error) {
 	}
 	return &link, nil
 }
+
+// GetAllLinks lấy danh sách link có phân trang
+func (s *Store) GetAllLinks(limit, offset int) ([]model.Link, error) {
+	query := `SELECT original_url, short_code, click_count, created_at 
+	          FROM links 
+	          ORDER BY created_at DESC 
+	          LIMIT $1 OFFSET $2`
+
+	rows, err := s.DB.Query(query, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var links []model.Link
+	for rows.Next() {
+		var link model.Link
+		if err := rows.Scan(&link.OriginalURL, &link.ShortCode, &link.ClickCount, &link.CreatedAt); err != nil {
+			return nil, err
+		}
+		links = append(links, link)
+	}
+
+	// Kiểm tra lỗi sau khi lặp
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return links, nil
+}
