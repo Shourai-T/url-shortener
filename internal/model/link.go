@@ -8,4 +8,5 @@ type Link struct {
 	ShortCode   string    `json:"short_code"`
 	ClickCount  int       `json:"clicks"`
 	CreatedAt   time.Time `json:"created_at"`
+	ExpiresAt   time.Time `json:"expires_at"` // Thời gian hết hạn
 }

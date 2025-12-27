@@ -21,9 +21,9 @@ func NewRedisClient(addr string, password string, db int) *RedisClient {
 	return &RedisClient{Client: rdb}
 }
 
-// SetOriginalURL caches the mapping short_code -> original_url
-func (r *RedisClient) SetOriginalURL(ctx context.Context, code string, url string) error {
-	return r.Client.Set(ctx, "url:"+code, url, 24*time.Hour).Err()
+// SetOriginalURL caches the mapping short_code -> original_url with explicit expiration
+func (r *RedisClient) SetOriginalURL(ctx context.Context, code string, url string, ttl time.Duration) error {
+	return r.Client.Set(ctx, "url:"+code, url, ttl).Err()
 }
 
 // GetOriginalURL retrieves original_url from cache
