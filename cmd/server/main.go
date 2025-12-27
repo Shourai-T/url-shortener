@@ -36,7 +36,26 @@ func main() {
 
 	// 4. Initialize Dependency
 	// Init Redis
-	redisClient := storage.NewRedisClient("localhost:6379", "", 0) // Password "" for local
+	var redisClient *storage.RedisClient
+	redisURL := os.Getenv("REDIS_URL")
+
+	if redisURL != "" {
+		// Kết nối kiểu Cloud (Render)
+		var err error
+		redisClient, err = storage.NewRedisClientFromURL(redisURL)
+		if err != nil {
+			log.Fatalf("Invalid REDIS_URL: %v", err)
+		}
+		log.Println("Connected to Redis via URL")
+	} else {
+		// Kết nối kiểu local/docker-compose
+		redisAddr := os.Getenv("REDIS_ADDR")
+		if redisAddr == "" {
+			redisAddr = "localhost:6379"
+		}
+		redisClient = storage.NewRedisClient(redisAddr, "", 0)
+		log.Println("Connected to Redis via Address:", redisAddr)
+	}
 
 	store := storage.NewStore(db, redisClient)
 	handler := handler.NewHandler(store)

@@ -8,14 +8,18 @@
 2.  **Redirect**: Chuyển hướng người dùng về link gốc khi truy cập link ngắn.
 3.  **Click Tracking**: Đếm số lượt click (View count).
 4.  **Concurrency Safe**: Đảm bảo bộ đếm click chính xác tuyệt đối ngay cả khi có hàng nghìn request cùng lúc.
-5.  **Link Stats**: Xem thông tin chi tiết của link (URL gốc, ngày tạo, số click).
+5.  **Link Stats**: Xem thông tin chi tiết của link (URL gốc, ngày tạo, số click, ngày hết hạn).
+6.  **Rate Limiting**: Giới hạn mỗi IP chỉ được tạo 10 link/phút để chống Spam.
+7.  **High Performance**: Sử dụng Redis Caching và Async Queue để xử lý hàng nghìn request mỗi giây.
 
 ## 🛠 Tech Stack
 
 - **Language**: Golang 1.20+
 - **Framework**: Gin Gonic (High performance HTTP web framework)
-- **Database**: PostgreSQL (Supabase)
-- **Driver**: pgx/v5 (Driver thuần Go hiệu năng cao cho Postgres)
+- **Framework**: Gin Gonic (High performance HTTP web framework)
+- **Database**: PostgreSQL (Supabase) + Redis (Caching)
+- **Driver**: pgxpool/v5 (Connection Pooling)
+- **Container**: Docker + Docker Compose
 - **Architecture**: Layered Architecture (Handler -> Store -> Database)
 
 ## ⚙️ Cài đặt & Chạy dự án
@@ -82,6 +86,32 @@ go run cmd/server/main.go
 ```
 
 Server sẽ khởi động tại `http://localhost:8000`.
+
+### 6. Chạy với Docker (Khuyên dùng)
+
+Chỉ cần một lệnh duy nhất để dựng toàn bộ stack:
+
+```bash
+docker-compose up -d --build
+```
+
+Hệ thống bao gồm:
+
+- **App**: `http://localhost:8000`
+- **RedisUI**: `http://localhost:8001`
+
+### 7. Link bài viết hướng dẫn Deploy (Render.com)
+
+Để deploy dự án này lên Render:
+
+1.  Fork repo này về GitHub của bạn.
+2.  Truy cập [Render Dashboard](https://dashboard.render.com/blueprints).
+3.  Chọn **New Blueprint Instance**.
+4.  Kết nối với repo GitHub vừa Fork.
+5.  Render sẽ tự động đọc file `render.yaml` và dựng lên Web Service + Redis + Database.
+6.  Ngồi chờ 2 phút và tận hưởng kết quả!
+
+---
 
 ---
 
@@ -250,5 +280,34 @@ Trong quá trình làm, em đã phải cân nhắc giữa các lựa chọn:
 - **Cần làm thêm**:
   - **Rate Limiting**: Chặn IP spam tạo hàng loạt link.
   - **Phishing Check**: Tích hợp Google Safe Browsing API để chặn rút gọn link lừa đảo/độc hại.
+
+---
+
+### 6. Scalability Implementation (Redis & Async)
+
+Em đã tích hợp Redis để giải quyết bài toán hiệu năng lớn:
+
+#### 6.1. Caching (Read Path)
+
+- Khi user truy cập Link ngắn, hệ thống kiểm tra Redis trước.
+- **Cache Hit**: Trả về URL ngay lập tức (< 1ms), không gọi vào Postgres.
+- **Cache Miss**: Đọc từ Postgres -> Lưu vào Redis -> Trả về.
+- **Expiration**: Cache tự động hết hạn theo thời gian sống của Link (30 ngày).
+
+#### 6.2. Async Click Counting (Write Path)
+
+- Thay vì UPDATE vào Postgres mỗi lần click (gây lock row, chậm), em dùng Redis `INCR` (Atomic).
+- Một **Background Worker** chạy ngầm mỗi 10 giây sẽ gom số lượng click từ Redis và cập nhật xuống Postgres một lần (Batch Update).
+- **Kết quả**: Giảm tải Write cho DB đến 99%.
+
+### 7. Rate Limiting
+
+Sử dụng thuật toán **Token Bucket** (via `ulule/limiter`) để giới hạn mỗi IP chỉ được gọi API tạo link 10 lần/phút.
+
+### 8. Link Expiration
+
+- Mặc định mỗi link có tuổi thọ **30 ngày**.
+- Hệ thống tự động chặn truy cập nếu quá hạn.
+- Redis TTL được đồng bộ với thời gian hết hạn của Link.
 
 ---

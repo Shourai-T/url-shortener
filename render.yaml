@@ -1,0 +1,36 @@
+services:
+  # 1. Main Application (Golang)
+  - type: web
+    name: url-shortener
+    env: go
+    plan: free
+    buildCommand: go build -o server cmd/server/main.go
+    startCommand: ./server
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: url-shortener-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: url-shortener-redis
+          property: connectionString
+      - key: GIN_MODE
+        value: release
+
+  # 2. Redis Cache
+  - type: redis
+    name: url-shortener-redis
+    region: singapore
+    plan: free # Render Redis Free Tier
+    ipAllowList: [] # Chỉ cho phép internal access
+
+databases:
+  # 3. PostgreSQL
+  # Lưu ý: Render Free Tier Postgres hết hạn sau 30 ngày.
+  # Tốt nhất nên dùng Supabase rồi paste connection string vào Environment Variables manually nếu muốn lâu dài.
+  # Tuy nhiên để demo "1-click deploy", mình vẫn define ở đây.
+  - name: url-shortener-db
+    region: singapore
+    plan: free

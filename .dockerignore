@@ -1,0 +1,29 @@
+# Binaries
+main
+server
+*.exe
+*.dll
+
+# Dependencies
+vendor/
+node_modules/
+
+# Environment
+.env
+
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# IDEs
+.idea/
+.vscode/
+
+# Temp
+tmp/
+*.log

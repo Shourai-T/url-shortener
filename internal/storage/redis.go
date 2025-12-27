@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -11,6 +12,7 @@ type RedisClient struct {
 	Client *redis.Client
 }
 
+// NewRedisClient khởi tạo Redis client từ host, password, db (legacy/local)
 func NewRedisClient(addr string, password string, db int) *RedisClient {
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     addr,
@@ -19,6 +21,18 @@ func NewRedisClient(addr string, password string, db int) *RedisClient {
 	})
 
 	return &RedisClient{Client: rdb}
+}
+
+// NewRedisClientFromURL khởi tạo Redis client từ connection string (Render/Cloud)
+// Format: redis://:<password>@<host>:<port>/<db>
+func NewRedisClientFromURL(connectionURL string) (*RedisClient, error) {
+	opts, err := redis.ParseURL(connectionURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse redis url: %w", err)
+	}
+
+	rdb := redis.NewClient(opts)
+	return &RedisClient{Client: rdb}, nil
 }
 
 // SetOriginalURL caches the mapping short_code -> original_url with explicit expiration

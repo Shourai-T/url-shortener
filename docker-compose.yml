@@ -1,0 +1,39 @@
+version: "3.8"
+
+services:
+  app:
+    build: .
+    container_name: url-shortener-app
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/url_shortener?sslmode=disable
+      - REDIS_ADDR=redis:6379
+    depends_on:
+      - db
+      - redis
+    restart: always
+
+  redis:
+    image: redis:alpine
+    container_name: url-shortener-redis
+    ports:
+      - "6379:6379"
+    restart: always
+
+  db:
+    image: postgres:15-alpine
+    container_name: url-shortener-db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=url_shortener
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+    restart: always
+
+volumes:
+  postgres_data:
