@@ -4,7 +4,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/Shourai-T/url-shortener/internal/api"
+	"github.com/Shourai-T/url-shortener/internal/handler"
 	"github.com/Shourai-T/url-shortener/internal/storage"
 	"github.com/gin-gonic/gin"
 
@@ -34,7 +34,7 @@ func main() {
 
 	// 4. Initialize Dependency
 	store := storage.NewStore(db)
-	handler := api.NewHandler(store)
+	handler := handler.NewHandler(store)
 
 	// 5. Setup Router
 	r := gin.Default()
