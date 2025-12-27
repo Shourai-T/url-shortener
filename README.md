@@ -24,10 +24,21 @@
 
 - Go (Golang) đã cài đặt.
 - Database PostgreSQL (hoặc Supabase account).
+- Redis (cho Caching & Async Queue).
 
 ### 2. Setup
 
-Clone dự án và cài đặt dependencies:
+**Bước 1: Khởi động Redis (bắt buộc)**
+
+Nếu dùng Docker:
+
+```bash
+docker run -d --name redis-stack -p 6379:6379 -p 8001:8001 redis/redis-stack:latest
+```
+
+_Lưu ý: Image `redis-stack` đi kèm với giao diện quản lý trực quan tại `http://localhost:8001`._
+
+**Bước 2: Clone dự án**
 
 ```bash
 git clone https://github.com/Shourai-T/url-shortener.git

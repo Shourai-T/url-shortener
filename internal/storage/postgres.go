@@ -1,31 +1,38 @@
 package storage
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 	"log"
-	"time"
 
-	_ "github.com/jackc/pgx/v5/stdlib" // Import driver pgx
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// NewDatabase khởi tạo kết nối đến Postgres
-func NewDatabase(dsn string) (*sql.DB, error) {
-	db, err := sql.Open("pgx", dsn)
+// NewDatabase khởi tạo kết nối đến Postgres bằng pgxpool
+func NewDatabase(dsn string) (*pgxpool.Pool, error) {
+	// Parse config
+	config, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open db: %w", err)
+		return nil, fmt.Errorf("failed to parse db config: %w", err)
 	}
 
-	// Cấu hình Connection Pool (Quan trọng cho performance)
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(10)
-	db.SetConnMaxLifetime(5 * time.Minute)
+	// Cấu hình Pool
+	config.MaxConns = 25
+	config.MinConns = 5
+	// ConnMaxLifetime không cần thiết lập thủ công với pgxpool thường (nó tự quản lý tốt)
 
-	// Ping thử để chắc chắn kết nối thành công
-	if err := db.Ping(); err != nil {
+	// Tạo Pool
+	ctx := context.Background()
+	pool, err := pgxpool.NewWithConfig(ctx, config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create connection pool: %w", err)
+	}
+
+	// Ping kiểm tra
+	if err := pool.Ping(ctx); err != nil {
 		return nil, fmt.Errorf("failed to ping db: %w", err)
 	}
 
-	log.Println("✅ Connected to Supabase PostgreSQL successfully")
-	return db, nil
+	log.Println("✅ Connected to Supabase PostgreSQL successfully via pgxpool")
+	return pool, nil
 }

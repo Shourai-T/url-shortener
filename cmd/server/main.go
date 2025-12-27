@@ -7,6 +7,7 @@ import (
 	"github.com/Shourai-T/url-shortener/internal/handler"
 	"github.com/Shourai-T/url-shortener/internal/middleware"
 	"github.com/Shourai-T/url-shortener/internal/storage"
+	"github.com/Shourai-T/url-shortener/internal/worker" // Import worker
 	"github.com/gin-gonic/gin"
 
 	"github.com/joho/godotenv"
@@ -34,8 +35,15 @@ func main() {
 	log.Println("Application started. Database connection is ready.")
 
 	// 4. Initialize Dependency
-	store := storage.NewStore(db)
+	// Init Redis
+	redisClient := storage.NewRedisClient("localhost:6379", "", 0) // Password "" for local
+
+	store := storage.NewStore(db, redisClient)
 	handler := handler.NewHandler(store)
+
+	// Start Background Worker
+	syncWorker := worker.NewSyncWorker(db, redisClient)
+	syncWorker.Start()
 
 	// 5. Setup Router
 	r := gin.Default()
