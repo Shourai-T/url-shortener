@@ -4,7 +4,9 @@ import (
 	"log"
 	"os"
 
+	"github.com/Shourai-T/url-shortener/internal/api"
 	"github.com/Shourai-T/url-shortener/internal/storage"
+	"github.com/gin-gonic/gin"
 
 	"github.com/joho/godotenv"
 )
@@ -28,7 +30,19 @@ func main() {
 	}
 	defer db.Close() // Đóng kết nối khi app dừng
 
-	log.Println("🚀 Application started. Database connection is ready.")
+	log.Println("Application started. Database connection is ready.")
 
-	// Ở bước sau em sẽ khởi tạo HTTP Server (Gin) ở đây
+	// 4. Initialize Dependency
+	store := storage.NewStore(db)
+	handler := api.NewHandler(store)
+
+	// 5. Setup Router
+	r := gin.Default()
+	r.POST("/shorten", handler.ShortenURL)
+
+	// 6. Run Server
+	log.Println("Running on :8000")
+	if err := r.Run(":8000"); err != nil {
+		log.Fatal("Failed to run server:", err)
+	}
 }
