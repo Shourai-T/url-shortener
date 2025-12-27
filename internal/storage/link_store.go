@@ -41,3 +41,33 @@ func (s *Store) CreateLink(originalURL string) (*model.Link, error) {
 
 	return nil, fmt.Errorf("failed to generate unique code after retries")
 }
+
+// GetAndIncrement lấy URL gốc và tăng lượt click (Atomic Update)
+func (s *Store) GetAndIncrement(shortCode string) (string, error) {
+	query := `UPDATE links 
+	          SET click_count = click_count + 1 
+	          WHERE short_code = $1 
+	          RETURNING original_url`
+
+	var originalURL string
+	err := s.DB.QueryRow(query, shortCode).Scan(&originalURL)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", fmt.Errorf("link not found")
+		}
+		return "", fmt.Errorf("failed to update click count: %w", err)
+	}
+
+	return originalURL, nil
+}
+
+// GetLinkStats để xem thông tin link
+func (s *Store) GetLinkStats(shortCode string) (*model.Link, error) {
+	var link model.Link
+	query := `SELECT original_url, short_code, click_count FROM links WHERE short_code = $1`
+	err := s.DB.QueryRow(query, shortCode).Scan(&link.OriginalURL, &link.ShortCode, &link.ClickCount)
+	if err != nil {
+		return nil, err
+	}
+	return &link, nil
+}

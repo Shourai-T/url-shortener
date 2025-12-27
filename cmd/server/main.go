@@ -39,6 +39,8 @@ func main() {
 	// 5. Setup Router
 	r := gin.Default()
 	r.POST("/shorten", handler.ShortenURL)
+	r.GET("/:code", handler.RedirectHandler)
+	r.GET("/api/stats/:code", handler.GetStats)
 
 	// 6. Run Server
 	log.Println("Running on :8000")

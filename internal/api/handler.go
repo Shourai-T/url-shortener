@@ -1,6 +1,7 @@
 package api
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/Shourai-T/url-shortener/internal/storage"
@@ -37,4 +38,29 @@ func (h *Handler) ShortenURL(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, ShortenResponse{ShortCode: link.ShortCode})
+}
+
+func (h *Handler) RedirectHandler(c *gin.Context) {
+	code := c.Param("code")
+
+	originalURL, err := h.store.GetAndIncrement(code)
+	if err != nil {
+		log.Printf("Error in RedirectHandler: %v", err)
+		c.JSON(http.StatusNotFound, gin.H{"error": "Short link not found"})
+		return
+	}
+
+	// Redirect 302 (Found)
+	c.Redirect(http.StatusFound, originalURL)
+}
+
+// GetStatsHandler: Xem thống kê
+func (h *Handler) GetStats(c *gin.Context) {
+	code := c.Param("code")
+	link, err := h.store.GetLinkStats(code)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Link not found"})
+		return
+	}
+	c.JSON(http.StatusOK, link)
 }
