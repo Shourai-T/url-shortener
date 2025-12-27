@@ -3,7 +3,9 @@ package handler
 import (
 	"log"
 	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/Shourai-T/url-shortener/internal/model"
 	"github.com/Shourai-T/url-shortener/internal/storage"
@@ -26,10 +28,46 @@ type ShortenResponse struct {
 	ShortCode string `json:"short_code"`
 }
 
+// Helper function để kiểm tra URL an toàn
+func validateURL(inputURL string) bool {
+	// 1. Parse URL xem đúng định dạng không
+	u, err := url.ParseRequestURI(inputURL)
+	if err != nil {
+		return false
+	}
+
+	// 2. Chỉ chấp nhận HTTP và HTTPS (Chặn javascript://, file://, ftp://)
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return false
+	}
+
+	// 3. Phải có Host (tên miền)
+	if u.Host == "" {
+		return false
+	}
+
+	// 4. (Basic SSRF) Chặn localhost/127.0.0.1 để tránh scan mạng nội bộ
+	hostname := u.Hostname()
+	if hostname == "localhost" || hostname == "127.0.0.1" || hostname == "::1" {
+		return false
+	}
+
+	return true
+}
+
 func (h *Handler) ShortenURL(c *gin.Context) {
 	var req ShortenRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Validate URL
+	req.OriginalURL = strings.TrimSpace(req.OriginalURL) // Xóa khoảng trắng thừa
+	if !validateURL(req.OriginalURL) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid URL. Must be http/https and not localhost.",
+		})
 		return
 	}
 

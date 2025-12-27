@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/Shourai-T/url-shortener/internal/handler"
+	"github.com/Shourai-T/url-shortener/internal/middleware"
 	"github.com/Shourai-T/url-shortener/internal/storage"
 	"github.com/gin-gonic/gin"
 
@@ -38,7 +39,10 @@ func main() {
 
 	// 5. Setup Router
 	r := gin.Default()
-	r.POST("/shorten", handler.ShortenURL)
+
+	// Apply Rate Limiting cho api rút gọn: 10 req/phút
+	r.POST("/shorten", middleware.RateLimiterMiddleware("10-M"), handler.ShortenURL)
+
 	r.GET("/:code", handler.RedirectHandler)
 
 	api := r.Group("/api")
