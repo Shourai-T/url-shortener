@@ -11,6 +11,7 @@
 5.  **Link Stats**: Xem thông tin chi tiết của link (URL gốc, ngày tạo, số click, ngày hết hạn).
 6.  **Rate Limiting**: Giới hạn mỗi IP chỉ được tạo 10 link/phút để chống Spam.
 7.  **High Performance**: Sử dụng Redis Caching và Async Queue để xử lý hàng nghìn request mỗi giây.
+8.  **Link Management**: Hỗ trợ xoá link ngắn (API Delete).
 
 ## 🛠 Tech Stack
 
@@ -177,6 +178,16 @@ Hệ thống bao gồm:
     ],
     "page": 1,
     "limit": 5
+  }
+  ```
+
+### 5. Xóa Link Rút Gọn
+
+- **Endpoint**: `DELETE /api/links/:code` (Ví dụ: `DELETE /api/links/aBc123`)
+- **Response**:
+  ```json
+  {
+    "message": "Link deleted successfully"
   }
   ```
 

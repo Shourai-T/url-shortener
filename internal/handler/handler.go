@@ -143,3 +143,24 @@ func (h *Handler) ListLinks(c *gin.Context) {
 		"limit": limit,
 	})
 }
+
+// DeleteLink: Xóa link
+func (h *Handler) DeleteLink(c *gin.Context) {
+	code := c.Param("code")
+	if code == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Code is required"})
+		return
+	}
+
+	err := h.store.DeleteLink(code)
+	if err != nil {
+		if err.Error() == "link not found" {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Link not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete link"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Link deleted successfully"})
+}

@@ -147,3 +147,28 @@ func (s *Store) GetAllLinks(limit, offset int) ([]model.Link, error) {
 
 	return links, nil
 }
+
+// DeleteLink xóa link khỏi DB và Redis
+func (s *Store) DeleteLink(shortCode string) error {
+	ctx := context.Background()
+
+	// 1. Xóa khỏi DB
+	query := `DELETE FROM links WHERE short_code = $1`
+	tag, err := s.db.Exec(ctx, query, shortCode)
+	if err != nil {
+		return fmt.Errorf("failed to delete from db: %w", err)
+	}
+
+	// Kiểm tra xem có row nào bị xóa không
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("link not found")
+	}
+
+	// 2. Xóa khỏi Redis (Cache & Click Count)
+	// Xóa key URL cache
+	_ = s.redis.DeleteKey(ctx, "url:"+shortCode)
+	// Xóa key Click cache (nếu có)
+	_ = s.redis.DeleteKey(ctx, "click:"+shortCode)
+
+	return nil
+}

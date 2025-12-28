@@ -78,6 +78,7 @@ func main() {
 	api := r.Group("/api")
 	api.GET("/stats/:code", handler.GetStats)
 	api.GET("/links", handler.ListLinks)
+	api.DELETE("/links/:code", handler.DeleteLink)
 
 	// 6. Run Server
 	log.Println("Running on :8000")
